@@ -1,0 +1,48 @@
+gross_salary      := ...
+avg_gross_salary  := 34835
+
+# Social insurance
+si_tax_base_cap   := avg_gross_salary * 4
+                  := 139340
+si_tax_base       := min(gross_salary, si_tax_base_cap)  # In reality this is determined by a cumulative sum
+                                                         # since beginning of the year, not on a monthly basis
+si_tax_employer   := si_tax_base * 24.8%
+si_tax_employee   := si_tax_base *  6.5%
+si_tax            := si_tax_employee + si_tax_employer
+
+# Health insurance
+hi_tax_employer   := gross_salary * 9.0%
+hi_tax_employee   := gross_salary * 4.5%
+hi_tax            := hi_tax_employee + hi_tax_employer
+
+# Income tax
+supergross_salary := gross_salary + si_tax_employer + hi_tax_employer
+                  ~= gross_salary + gross_salary * 24.8% + gross_salary * 9.0%  # Ignoring the SI cap here
+                  ~= gross_salary * 133.8%
+income_tax_base   := round_down(supergross_salary, 100)
+income_tax        := income_tax_base       * 15%
+                  ~= supergross_salary     * 15%
+                  ~= gross_salary * 133.8% * 15%
+                  ~= gross_salary          * 20.07%  # I.e. the nominal income tax is 15%, but effectively 20%
+
+# Solidarity tax
+solidarity_tax_threshold := avg_gross_salary * 4
+                         := 139340
+solidarity_tax           := max(gross_salary - solidarity_tax_threshold, 0) * 7%  # 7% extra above the threshold
+
+# Credit
+basic_credit      := { pink_form_signed: 2070,
+                              otherwise:    0 }
+
+credit            := basic_credit + ...
+
+# Net salary
+net_salary        := gross_salary - si_tax_employee - hi_tax_employee - income_tax - solidarity_tax + credit
+        # I.e. for the amount below the solidarity tax threshold only:
+                  ~= gross_salary * (100% - 6.5% - 4.5% - 20.07%)
+                  ~= gross_salary * (100% - 31.07%)
+        # I.e. for the amount above the solidarity tax threshold only:
+                  ~= gross_salary * (100% - 6.5% - 4.5% - 20.07% - 7%)
+                  ~= gross_salary * (100% - 38.07%)
+total_taxation    ~= min(gross_salary,  solidarity_tax_threshold)    * 31.07%
+                   + max(gross_salary - solidarity_tax_threshold, 0) * 38.07%
